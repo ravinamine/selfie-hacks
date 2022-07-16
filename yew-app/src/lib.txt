@@ -1,0 +1,337 @@
+struct TodoApp {
+    link: ComponentLink<Self>,
+    todos: Option<Vec<Todo>>,
+    fetch_task: Option<FetchTask>,
+}
+
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Todo {
+    pub user_id: u64,
+    pub id: u64,
+    pub title: String,
+    pub completed: bool,
+}
+
+enum Msg {
+    MakeReq,
+    Resp(Result<Vec<Todo>, anyhow::Error>),
+}
+
+impl Component for TodoApp {
+    type Message = Msg;
+    type Properties = ();
+    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self {
+            link,
+            todos: None,
+            fetch_task: None,
+        }
+    }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        true
+    }
+
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        false
+    }
+
+    fn view(&self) -> Html {
+        html! {
+            <div class=classes!("todo")>
+            </div>
+        }
+    }
+}
+
+#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::<TodoApp>::new().mount_to_body();
+}
+
+fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+        link.send_message(Msg::MakeReq);
+        Self {
+            link,
+            todos: None,
+            fetch_task: None,
+        }
+    }
+
+fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::MakeReq => {
+                self.todos = None;
+                let req = Request::get("https://jsonplaceholder.typicode.com/todos")
+                    .body(Nothing)
+                    .expect("can make req to jsonplaceholder");
+
+                let cb = self.link.callback(
+                    |response: Response<Json<Result<Vec<Todo>, anyhow::Error>>>| {
+                        let Json(data) = response.into_body();
+                        Msg::Resp(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) => {
+                if let Ok(data) = resp {
+                    self.todos = Some(data);
+                }
+            }
+        }
+        true
+    }
+
+fn view(&self) -> Html {
+        let todos = self.todos.clone();
+        let cb = self.link.callback(|_| Msg::MakeReq);
+        ConsoleService::info(&format!("render TodoApp: {:?}", todos));
+        html! {
+            <div class=classes!("todo")>
+              <div>
+                  <div class=classes!("refresh")>
+                      <button onclick=cb.clone()>
+                          { "refresh" }
+                      </button>
+                  </div>
+                  <todo::list::List todos=todos.clone()/>
+              </div>
+            </div>
+        }
+    }
+
+#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub todos: Option<Vec<Todo>>,
+}
+
+pub struct List {
+    props: Props,
+}
+
+pub enum Msg {}
+
+impl Component for List {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
+    }
+
+    fn view(&self) -> Html {
+        html! {
+            <div>
+                { self.render_list(&self.props.todos)}
+            </div>
+        }
+    }
+
+    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+        true
+    }
+
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
+        true
+    }
+}
+
+impl List {
+    fn render_list(&self, todos: &Option<Vec<Todo>>) -> Html {
+        if let Some(t) = todos {
+            html! {
+                <div class=classes!("list")>
+                    { t.iter().map(|todo| self.view_todo(todo)).collect::<Html>() }
+                </div>
+            }
+        } else {
+            html! {
+                <div class=classes!("loading")>{"loading..."}</div>
+            }
+        }
+    }
+
+    fn view_todo(&self, todo: &Todo) -> Html {
+        let completed = if todo.completed {
+            Some("completed")
+        } else {
+            None
+        };
+        html! {
+            <div class=classes!("list-item", completed)>
+                { &todo.title }
+            </div>
+        }
+    }
+}
+
+#[derive(Switch, Clone, Debug)]
+pub enum AppRoute {
+    #[to = "/todo/{id}"]
+    Detail(i32),
+    #[to = "/"]
+    Home,
+}
+
+fn view(&self) -> Html {
+        let todos = self.todos.clone();
+        let cb = self.link.callback(|_| Msg::MakeReq);
+        ConsoleService::info(&format!("render TodoApp: {:?}", todos));
+        html! {
+            <div class=classes!("todo")>
+                <div class=classes!("nav")>
+                    <Anchor route=AppRoute::Home>{"Home"}</Anchor>
+                </div>
+                <div class=classes!("content")>
+                    <Router<AppRoute, ()>
+                        render = Router::render(move |switch: AppRoute| {
+                            match switch {
+                                AppRoute::Detail(todo_id) => {
+                                    html! {
+                                        <div>
+                                            <todo::detail::Detail todo_id=todo_id/>
+                                        </div>}
+                                }
+                                AppRoute::Home => {
+                                    html! {
+                                        <div>
+                                            <div class=classes!("refresh")>
+                                                <button onclick=cb.clone()>
+                                                    { "refresh" }
+                                                </button>
+                                            </div>
+                                            <todo::list::List todos=todos.clone()/>
+                                        </div>
+                                    }
+                                }
+                            }
+                        })
+                    />
+                </div>
+            </div>
+        }
+    }
+
+fn view_todo(&self, todo: &Todo) -> Html {
+        let completed = if todo.completed {
+            Some("completed")
+        } else {
+            None
+        };
+        html! {
+            <div class=classes!("list-item", completed)>
+                <Anchor route=AppRoute::Detail(todo.id as i32)>
+                    { &todo.title }
+                </Anchor>
+            </div>
+        }
+    }
+
+#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub todo_id: i32,
+}
+
+pub struct Detail {
+    props: Props,
+    link: ComponentLink<Self>,
+    todo: Option<Todo>,
+    fetch_task: Option<FetchTask>,
+}
+
+pub enum Msg {
+    MakeReq(i32),
+    Resp(Result<Todo, anyhow::Error>),
+}
+
+impl Component for Detail {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        link.send_message(Msg::MakeReq(props.todo_id));
+        Self {
+            props,
+            link,
+            todo: None,
+            fetch_task: None,
+        }
+    }
+
+    fn view(&self) -> Html {
+        html! {
+            <div>
+                { self.render_detail(&self.todo)}
+            </div>
+        }
+    }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::MakeReq(id) => {
+                let req = Request::get(&format!(
+                    "https://jsonplaceholder.typicode.com/todos/{}",
+                    id
+                ))
+                .body(Nothing)
+                .expect("can make req to jsonplaceholder");
+
+                let cb =
+                    self.link
+                        .callback(|response: Response<Json<Result<Todo, anyhow::Error>>>| {
+                            let Json(data) = response.into_body();
+                            Msg::Resp(data)
+                        });
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) => {
+                if let Ok(data) = resp {
+                    self.todo = Some(data);
+                }
+            }
+        }
+        true
+    }
+
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.props = props;
+        true
+    }
+}
+
+impl Detail {
+    fn render_detail(&self, todo: &Option<Todo>) -> Html {
+        match todo {
+            Some(t) => {
+                let completed = if t.completed {
+                    Some("completed")
+                } else {
+                    Some("not-completed")
+                };
+                html! {
+                    <div class=classes!("detail")>
+                        <h1>{&t.title}{" ("}<span class=classes!("id")>{t.id}</span>{")"}</h1>
+                        <div>{"by user "}{t.user_id}</div>
+                        <div class=classes!(completed)>{if t.completed { "done" } else { "not done" }}</div>
+                    </div>
+                }
+            }
+            None => {
+                html! {
+                    <div class=classes!("loading")>{"loading..."}</div>
+                }
+            }
+        }
+    }
+}
+
+
