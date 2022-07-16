@@ -9,9 +9,6 @@ RUN cd /home && git clone https://github.com/ravinamine/selfie-hacks.git
 WORKDIR /home/selfie-hacks
 RUN git remote set-url origin git@github.com:ravinamine/selfie-hacks.git
 
-RUN touch /root/.bashrc
-RUN cd docker && cat bashrc.sh >> /root/.bashrc && bash_source.sh
-
 ARG SSH_PRIVATE_KEY
 RUN mkdir ~/.ssh/
 RUN echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
