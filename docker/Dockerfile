@@ -11,4 +11,3 @@ RUN mkdir ~/.ssh/
 RUN echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
 RUN chmod 600 ~/.ssh/id_rsa
 RUN ssh-keyscan github.com >> ~/.ssh/known_hosts
-#CMD ssh-keygen -q -t rsa -N '' -f /keys/id_rsa -C "ravinamine@gmail.com"
