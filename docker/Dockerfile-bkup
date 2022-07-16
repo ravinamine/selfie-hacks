@@ -1,9 +1,0 @@
-FROM alpine
-RUN apk update && apk upgrade --available
-RUN apk add --update --no-cache vim git g++ python3
-RUN python3 -m ensurepip
-RUN pip3 install --no-cache --upgrade pip setuptools 
-RUN cd /home && git clone https://github.com/ravinamine/HackTheRunway.git
-WORKDIR /home/HackTheRunway
-RUN git config user.email "ravinamine@gmail.com" && git config user.name "ravinamine"
-CMD ["echo", "Good luck and have fun with Hack the Runway!"]
