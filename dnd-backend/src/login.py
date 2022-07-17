@@ -16,29 +16,45 @@ login_prompt = [
 def login(login_selection):
     user_login = input("Enter username: ")
     user_hash = hashlib.md5(user_login.encode())
+    user_hash = user_hash.hexdigest()
     if login_selection.get("user_login_option") == "Sign In":
-        sign_in(user_hash)
+        sign_in(user_hash, user_login)
     elif login_selection.get("user_login_option") == "Sign Up":
-        sign_up(user_hash)
+        sign_up(user_hash, user_login)
 
 def user_dir_load():
-    user_hash_dir = open("../resources/logins", "r+")
+    user_hash_dir = open("../resources/logins", "r")
     user_hash_str = user_hash_dir.read()
     user_hash_vec = user_hash_str.split("\n")
+    user_hash_dir.close()
     return user_hash_vec
 
-def sign_in(user_hash):
+def sign_in(user_hash, user_login):
+    user_hash_dir = open("../resources/logins", "a")
     user_hash_vec = user_dir_load()
-    print(user_hash_vec)
+    for x in user_hash_vec:
+        if user_hash == x:
+            print("Welcome " + user_login)
+            return
+    print("User not found, please sign up")
+    user_hash_dir.close()
+    return
 
-def sign_up(user_hash):
+def sign_up(user_hash, user_login):
+    user_hash_dir = open("../resources/logins", "a")
     user_hash_vec = user_dir_load()
-    print(user_hash_vec)
+    for x in user_hash_vec:
+        if x == user_hash:
+            print("User already exists, please log in")
+            return
+    user_hash_dir.write(user_hash + "\n")
+    print("Successfully created user, welcome!")
+    user_hash_dir.close()
+    return
 
 def main():
     login_selection = prompt(login_prompt)
     login(login_selection)
-    user_hash_dir.close()
 
 if __name__ == "__main__":
     main()
